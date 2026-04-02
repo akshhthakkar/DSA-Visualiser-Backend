@@ -45,8 +45,22 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // Backend-DevSkill.md: "CORS configured explicitly"
+  // Accepts the primary production URL + any Vercel preview deployment URLs.
+  const allowedOrigins: (string | RegExp)[] = [env.FRONTEND_URL];
+
+  // Allow all Vercel preview deployments for this project (e.g. dsavisualization-*.vercel.app)
+  allowedOrigins.push(/^https:\/\/dsavisualization[a-zA-Z0-9-]*\.vercel\.app$/);
+
   await app.register(cors, {
-    origin: env.FRONTEND_URL,
+    origin: (origin, cb) => {
+      // Allow requests with no origin (e.g. server-to-server, curl)
+      if (!origin) return cb(null, true);
+      const allowed = allowedOrigins.some((o) =>
+        typeof o === 'string' ? o === origin : o.test(origin)
+      );
+      if (allowed) return cb(null, true);
+      cb(new Error(`CORS: Origin '${origin}' not allowed`), false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
