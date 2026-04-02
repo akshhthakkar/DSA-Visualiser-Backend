@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dsavisualizer-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dsavisualizer
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: dsavisualizer-redis
+    ports:
+      - "16379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  piston:
+    image: ghcr.io/engineer-man/piston
+    container_name: dsavisualizer-piston
+    privileged: true
+    ports:
+      - "10200:2000"
+    tmpfs:
+      - /piston/jobs
+    # Optional init service to configure runtimes right after piston starts
+    # Note: Piston stores runtimes inside tmpfs, so they wipe on restart.
+    # The init container handles this transparently.
+
+  piston-init:
+    image: alpine/curl
+    container_name: dsavisualizer-piston-init
+    depends_on:
+      - piston
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./init-piston.sh:/init-piston.sh
+    # We install docker CLI purely to run `docker cp` for the C++ patch
+    entrypoint: /bin/sh -c "apk add --no-cache docker-cli bash && chmod +x /init-piston.sh && /init-piston.sh"
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: dsavisualizer-network

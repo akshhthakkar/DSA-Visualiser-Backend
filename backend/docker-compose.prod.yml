@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dsavisualizer-backend-prod
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/dsavisualizer?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      piston:
+        condition: service_started
+    networks:
+      - dsavisualizer-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: dsavisualizer-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dsavisualizer
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dsavisualizer-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: dsavisualizer-redis-prod
+    restart: always
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dsavisualizer-network
+
+  piston:
+    image: ghcr.io/engineer-man/piston
+    container_name: dsavisualizer-piston-prod
+    restart: always
+    privileged: true
+    tmpfs:
+      - /piston/jobs
+    networks:
+      - dsavisualizer-network
+
+  piston-init:
+    image: alpine/curl
+    container_name: dsavisualizer-piston-init-prod
+    depends_on:
+      - piston
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./init-piston.sh:/init-piston.sh
+    entrypoint: /bin/sh -c "apk add --no-cache docker-cli bash && chmod +x /init-piston.sh && /init-piston.sh"
+    networks:
+      - dsavisualizer-network
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+
+networks:
+  dsavisualizer-network:
+    name: dsavisualizer-prod-network
+    driver: bridge

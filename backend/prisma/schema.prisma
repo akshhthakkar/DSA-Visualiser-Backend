@@ -1,0 +1,413 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model University {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String
+  shortName    String?      @map("short_name") @db.VarChar(20)
+  emailDomains String[]     @map("email_domains")
+  country      String?      @db.VarChar(100)
+  state        String?      @db.VarChar(100)
+  city         String?      @db.VarChar(100)
+  isActive     Boolean      @default(true) @map("is_active")
+  maxStudents  Int?         @map("max_students")
+  maxTeachers  Int?         @map("max_teachers")
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  bulkImports  BulkImport[]
+  classes      Class[]
+  students     Student[]
+  teachers     Teacher[]
+
+  @@index([isActive])
+  @@map("universities")
+}
+
+model User {
+  id                      String                   @id @default(uuid()) @db.Uuid
+  name                    String
+  email                   String                   @unique
+  passwordHash            String                   @map("password_hash")
+  role                    UserRole
+  isActive                Boolean                  @default(true) @map("is_active")
+  emailVerified           Boolean                  @default(false) @map("email_verified")
+  emailVerifiedAt         DateTime?                @map("email_verified_at") @db.Timestamptz(3)
+  lastLoginAt             DateTime?                @map("last_login_at") @db.Timestamptz(3)
+  loginCount              Int                      @default(0) @map("login_count")
+  mfaEnabled              Boolean                  @default(false) @map("mfa_enabled")
+  mfaSecret               String?                  @map("mfa_secret")
+  createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt               DateTime?                @map("deleted_at") @db.Timestamptz(3)
+  mustResetPassword       Boolean                  @default(false) @map("must_reset_password")
+  auditLogs               AuditLog[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  bulkImports             BulkImport[]
+  participantSessions     InterviewSession[]       @relation("SessionParticipant")
+  hostedSessions          InterviewSession[]       @relation("SessionHost")
+  createdProblems         Problem[]                @relation("ProblemCreator")
+  sessions                Session[]
+  student                 Student?
+  teacher                 Teacher?
+
+  @@index([email])
+  @@index([role])
+  @@index([deletedAt])
+  @@index([isActive])
+  @@map("users")
+}
+
+model Student {
+  userId          String            @id @map("user_id") @db.Uuid
+  registerNumber  String            @map("register_number") @db.VarChar(50)
+  degree          String            @db.VarChar(100)
+  batch           String            @db.VarChar(20)
+  universityId    String            @map("university_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  enrollments     ClassStudent[]
+  roadmapProgress RoadmapProgress[]
+  progress        StudentProgress[]
+  university      University        @relation(fields: [universityId], references: [id])
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([registerNumber, universityId])
+  @@index([universityId])
+  @@index([batch])
+  @@index([degree])
+  @@index([registerNumber])
+  @@map("students")
+}
+
+model Teacher {
+  userId       String     @id @map("user_id") @db.Uuid
+  universityId String     @map("university_id") @db.Uuid
+  department   String?    @db.VarChar(100)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  classes      Class[]
+  university   University @relation(fields: [universityId], references: [id])
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([universityId])
+  @@index([department])
+  @@map("teachers")
+}
+
+model Class {
+  id               String         @id @default(uuid()) @db.Uuid
+  name             String
+  code             String         @db.VarChar(50)
+  degree           String         @db.VarChar(100)
+  batch            String         @db.VarChar(20)
+  universityId     String         @map("university_id") @db.Uuid
+  primaryTeacherId String         @map("primary_teacher_id") @db.Uuid
+  semester         String?        @db.VarChar(20)
+  academicYear     String?        @map("academic_year") @db.VarChar(20)
+  startDate        DateTime?      @map("start_date") @db.Timestamptz(3)
+  endDate          DateTime?      @map("end_date") @db.Timestamptz(3)
+  maxStudents      Int            @default(60) @map("max_students")
+  isActive         Boolean        @default(true) @map("is_active")
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt        DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  enrollments      ClassStudent[]
+  primaryTeacher   Teacher        @relation(fields: [primaryTeacherId], references: [userId])
+  university       University     @relation(fields: [universityId], references: [id])
+
+  @@unique([universityId, code])
+  @@index([universityId])
+  @@index([primaryTeacherId])
+  @@index([batch])
+  @@index([code])
+  @@index([degree])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("classes")
+}
+
+model ClassStudent {
+  id         String   @id @default(uuid()) @db.Uuid
+  classId    String   @map("class_id") @db.Uuid
+  studentId  String   @map("student_id") @db.Uuid
+  enrolledAt DateTime @default(now()) @map("enrolled_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student    Student  @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@unique([classId, studentId])
+  @@index([studentId])
+  @@index([classId])
+  @@map("class_students")
+}
+
+model Syllabus {
+  id        String    @id @default(uuid()) @db.Uuid
+  title     String
+  degree    String    @db.VarChar(100)
+  batch     String    @db.VarChar(20)
+  order     Int
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  problems  Problem[]
+
+  @@index([degree, batch])
+  @@index([order])
+  @@map("syllabus")
+}
+
+model Problem {
+  id                String            @id @default(uuid()) @db.Uuid
+  title             String
+  slug              String            @unique @db.VarChar(200)
+  description       String
+  topic             String            @db.VarChar(100)
+  category          String?           @db.VarChar(200)
+  difficulty        Difficulty
+  syllabusId        String?           @map("syllabus_id") @db.Uuid
+  problemType       String            @default("CODING") @map("problem_type") @db.VarChar(50)
+  constraints       String?
+  examples          Json?
+  timeComplexity    String?           @map("time_complexity") @db.VarChar(50)
+  spaceComplexity   String?           @map("space_complexity") @db.VarChar(50)
+  variants          Json?
+  visualizationType String?           @map("visualization_type") @db.VarChar(50)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdByUserId   String?           @map("created_by_user_id") @db.Uuid
+  expectedOutput    Json?             @map("expected_output")
+  hints             Json?
+  isPublished       Boolean           @default(false) @map("is_published")
+  starterCode       Json?             @map("starter_code")
+  hiddenTestCases   HiddenTestCase[]
+  createdBy         User?             @relation("ProblemCreator", fields: [createdByUserId], references: [id])
+  syllabus          Syllabus?         @relation(fields: [syllabusId], references: [id])
+  roadmapProblems   RoadmapProblem[]
+  progress          StudentProgress[]
+
+  @@index([topic])
+  @@index([difficulty])
+  @@index([syllabusId])
+  @@index([slug])
+  @@index([isPublished])
+  @@index([createdByUserId])
+  @@map("problems")
+}
+
+model StudentProgress {
+  id               String         @id @default(uuid()) @db.Uuid
+  studentId        String         @map("student_id") @db.Uuid
+  problemId        String         @map("problem_id") @db.Uuid
+  status           ProgressStatus
+  attempts         Int            @default(0)
+  timeSpentSeconds Int            @default(0) @map("time_spent_seconds")
+  score            Decimal?       @db.Decimal(5, 2)
+  bestTimeMs       Int?           @map("best_time_ms")
+  variantUsed      String?        @map("variant_used") @db.VarChar(100)
+  codeSubmission   String?        @map("code_submission")
+  solvedAt         DateTime?      @map("solved_at") @db.Timestamptz(3)
+  lastAttemptedAt  DateTime?      @map("last_attempted_at") @db.Timestamptz(3)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  problem          Problem        @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  student          Student        @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@unique([studentId, problemId])
+  @@index([studentId])
+  @@index([problemId])
+  @@index([status])
+  @@index([solvedAt])
+  @@map("student_progress")
+}
+
+model Session {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  deviceFingerprint String?  @map("device_fingerprint")
+  ipAddress         String   @map("ip_address") @db.Inet
+  userAgent         String   @map("user_agent")
+  refreshToken      String   @unique @map("refresh_token")
+  expiresAt         DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastActivityAt    DateTime @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  eventType    String   @map("event_type") @db.VarChar(100)
+  resourceType String?  @map("resource_type") @db.VarChar(100)
+  resourceId   String?  @map("resource_id") @db.Uuid
+  ipAddress    String?  @map("ip_address") @db.Inet
+  userAgent    String?  @map("user_agent")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  user         User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
+
+model BulkImport {
+  id           String     @id @default(uuid()) @db.Uuid
+  universityId String     @map("university_id") @db.Uuid
+  createdBy    String     @map("created_by") @db.Uuid
+  fileName     String     @map("file_name")
+  total        Int
+  successful   Int
+  failed       Int
+  status       String     @default("processing") @db.VarChar(50)
+  failedRows   Json?      @map("failed_rows")
+  durationMs   Int?       @map("duration_ms")
+  requestId    String?    @map("request_id") @db.VarChar(100)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  admin        User       @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  university   University @relation(fields: [universityId], references: [id])
+
+  @@index([universityId])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@map("bulk_imports")
+}
+
+model RoadmapChapter {
+  id            String           @id @default(uuid()) @db.Uuid
+  order         Int
+  title         String
+  totalProblems Int              @default(0) @map("total_problems")
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  problems      RoadmapProblem[]
+
+  @@index([order])
+  @@map("roadmap_chapters")
+}
+
+model RoadmapProblem {
+  id          String            @id @default(uuid()) @db.Uuid
+  chapterId   String            @map("chapter_id") @db.Uuid
+  order       Int
+  title       String
+  difficulty  Difficulty
+  topic       String            @db.VarChar(100)
+  leetcodeUrl String?           @map("leetcode_url")
+  problemId   String?           @map("problem_id") @db.Uuid
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  chapter     RoadmapChapter    @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  problem     Problem?          @relation(fields: [problemId], references: [id])
+  progress    RoadmapProgress[]
+
+  @@index([chapterId])
+  @@map("roadmap_problems")
+}
+
+model RoadmapProgress {
+  id               String         @id @default(uuid()) @db.Uuid
+  studentId        String         @map("student_id") @db.Uuid
+  roadmapProblemId String         @map("roadmap_problem_id") @db.Uuid
+  status           ProgressStatus
+  solvedAt         DateTime?      @map("solved_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  roadmapProblem   RoadmapProblem @relation(fields: [roadmapProblemId], references: [id], onDelete: Cascade)
+  student          Student        @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@unique([studentId, roadmapProblemId])
+  @@index([studentId])
+  @@map("roadmap_progress")
+}
+
+model InterviewSession {
+  id           String   @id @default(uuid()) @db.Uuid
+  hostId       String   @map("host_id") @db.Uuid
+  candidateId  String?  @map("candidate_id") @db.Uuid
+  status       String   @default("waiting") @db.VarChar(20)
+  problems     Json?
+  problem      String?
+  difficulty   String?  @db.VarChar(50)
+  roomId       String   @unique @map("room_id") @db.VarChar(100)
+  score        String?  @db.VarChar(50)
+  problemCodes Json?    @map("problem_codes")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  candidate    User?    @relation("SessionParticipant", fields: [candidateId], references: [id])
+  host         User     @relation("SessionHost", fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@index([hostId])
+  @@index([candidateId])
+  @@index([status])
+  @@map("interview_sessions")
+}
+
+model HiddenTestCase {
+  id             String   @id @default(uuid()) @db.Uuid
+  problemId      String   @map("problem_id") @db.Uuid
+  description    String?
+  inputCode      Json     @map("input_code")
+  expectedOutput String   @map("expected_output")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  problem        Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([problemId])
+  @@map("hidden_test_cases")
+}
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  ATTEMPTED
+  SOLVED
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  token     String   @unique
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([token])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  token     String   @unique
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_reset_tokens")
+}

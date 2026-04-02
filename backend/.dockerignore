@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+coverage
+docker-compose*.yml
+.DS_Store
+*.log
+.git
+.github
+tests/load/*.js
+src/**/*.test.ts
+src/__tests__
