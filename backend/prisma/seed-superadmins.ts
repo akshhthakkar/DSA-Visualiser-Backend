@@ -15,7 +15,7 @@ async function main() {
   console.log('Seeding superadmins...');
 
   const passwordHash1 = await bcrypt.hash('AkshDSA@123', 12);
-  const passwordHash2 = await bcrypt.hash('DiyvyaDSA@123', 12);
+  const passwordHash2 = await bcrypt.hash('DivyaDSA@123', 12);
 
   // Super Admin 1
   await prisma.user.upsert({
