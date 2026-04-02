@@ -35,7 +35,7 @@ const envSchema = z.object({
 
   // Email API (Brevo SMTP)
   SMTP_HOST: z.string().default('smtp-relay.brevo.com'),
-  SMTP_PORT: z.string().transform(Number).default('587'),
+  SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().default('a6abf4001@smtp-brevo.com'),
   SMTP_PASS: z
     .string()

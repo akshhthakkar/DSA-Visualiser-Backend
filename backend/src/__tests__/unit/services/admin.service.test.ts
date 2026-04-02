@@ -49,20 +49,20 @@ describe('Admin Service', () => {
       await createTestUser({ email: 'searchable@test.com', name: 'Zebra' });
       const result = await listUsers(1, 10, { search: 'Zebra' }, adminId, '127.0.0.1', 'Vitest');
       expect(result.users.length).toBe(1);
-      expect(result.users[0].email).toBe('searchable@test.com');
+      expect(result.users[0]?.email).toBe('searchable@test.com');
     });
   });
 
   describe('getUserById()', () => {
     it('should successfully get an existing user', async () => {
       const user = await createTestUser({ email: 'findme@test.com', role: 'STUDENT' });
-      const foundUser = await getUserById(user.id);
+      const foundUser = await getUserById(user.id, adminId, '127.0.0.1', 'Vitest');
       expect(foundUser.userId).toBe(user.id);
       expect(foundUser.email).toBe('findme@test.com');
     });
 
     it('should throw NotFoundError if user does not exist', async () => {
-      await expect(getUserById('00000000-0000-0000-0000-000000000000')).rejects.toThrow(
+      await expect(getUserById('00000000-0000-0000-0000-000000000000', adminId, '127.0.0.1', 'Vitest')).rejects.toThrow(
         NotFoundError
       );
     });

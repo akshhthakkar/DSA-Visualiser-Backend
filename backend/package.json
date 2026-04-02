@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "build:all": "npm run shared:build && npm run build",
     "start": "node dist/index.js",
+    "start:prod": "npx prisma migrate deploy && node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:studio": "prisma studio",
@@ -15,7 +17,13 @@
     "db:generate": "prisma generate",
     "db:reset": "prisma migrate reset",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docker:up": "docker compose -f docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker-compose.yml down",
+    "docker:deploy:up": "docker compose -f docker-compose.prod.yml up -d --build",
+    "docker:deploy:down": "docker compose -f docker-compose.prod.yml down",
+    "shared:build": "npm --prefix shared run build",
+    "shared:typecheck": "npm --prefix shared run type-check"
   },
   "keywords": [],
   "author": "",

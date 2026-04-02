@@ -48,4 +48,4 @@ EXPOSE 3000
 
 # Start the application. Note we run DB migrations locally dynamically or via CI, 
 # but starting Fastify is the command here. You may alternatively wrap this in a start script.
-CMD ["node", "dist/index.js"]
+CMD ["npm", "run", "start:prod"]

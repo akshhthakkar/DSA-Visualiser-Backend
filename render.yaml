@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: dsavisualizer-backend
+    env: docker
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    # Use the root directory as docker context so it can access everything if needed in the future
+    # But since Dockerfile is inside backend/ we copy what is there.
+    # We will use /backend context for the Dockerfile.
+    dockerContext: ./backend
+    plan: free # Can be upgraded to starter/standard on Render dashboard
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        sync: false # Set this in Render Dashboard (e.g. your vercel/netlify app URL)
+      - key: DATABASE_URL
+        sync: false # Supabase Postgres URL (Set in dashboard)
+      - key: DIRECT_URL
+        sync: false # Supabase Direct connection for migrations if needed
+      - key: REDIS_URL
+        sync: false # Upstash Redis URL (Set in dashboard)
+      - key: JWT_SECRET
+        sync: false # Set a strong 32+ char secret in dashboard
+      - key: JWT_ACCESS_EXPIRY
+        value: 15m
+      - key: JWT_REFRESH_EXPIRY
+        value: 7d
+      - key: BCRYPT_ROUNDS
+        value: 12
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false # Brevo User (Set in dashboard)
+      - key: SMTP_PASS
+        sync: false # Brevo SMTP Pass (Set in dashboard)
+      - key: EMAIL_FROM
+        value: noreply@dsavisualizer.com
+      - key: PISTON_URL
+        value: https://emkc.org/api/v2/piston/execute

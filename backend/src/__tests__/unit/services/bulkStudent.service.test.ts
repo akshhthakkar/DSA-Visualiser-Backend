@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { validateStudentsBulk, createStudentsBulk } from '../../../services/bulkStudent.service.js';
 import * as auditService from '../../../services/audit.service.js';
 import * as emailService from '../../../services/email.service.js';
-import { createTestUniversity, createTestTeacher } from '../../helpers/fixtures.js'; // Need to define createTestTeacher or use Teacher creation
+import { createTestUniversity } from '../../helpers/fixtures.js';
 import { prisma } from '../../../config/database.js';
-import { AuthorizationError, ValidationError } from '../../../utils/errors.js';
+import { ValidationError } from '../../../utils/errors.js';
 import { hashPassword } from '../../../utils/password.js';
 
 // Mocks
@@ -91,7 +91,7 @@ describe('Bulk Student Service', () => {
 
       expect(result.valid.length).toBe(1);
       expect(result.invalid.length).toBe(1);
-      expect(result.invalid[0].error).toContain('Email domain not allowed');
+      expect(result.invalid[0]?.error).toContain('Email domain not allowed');
     });
 
     it('should throw error for intra-batch duplicate emails', async () => {
@@ -143,7 +143,7 @@ describe('Bulk Student Service', () => {
 
       expect(result.summary.successful).toBe(1);
       expect(result.summary.failed).toBe(0);
-      expect(result.success[0].password).toBeDefined(); // Password should be generated
+      expect(result.success[0]?.password).toBeDefined(); // Password should be generated
 
       const dbStudent = await prisma.user.findUnique({ where: { email: 'new1@test.edu' } });
       expect(dbStudent).toBeDefined();

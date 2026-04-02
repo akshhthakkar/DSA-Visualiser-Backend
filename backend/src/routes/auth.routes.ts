@@ -142,7 +142,7 @@ export default async function authRoutes(app: FastifyInstance) {
   );
 
   // Email Verification
-  app.post('/verify-email', async (request: FastifyRequest<{ Body: any }>, reply: FastifyReply) => {
+  app.post('/verify-email', async (request: FastifyRequest<{ Body: { token: string } }>, reply: FastifyReply) => {
     const ip = request.ip;
     const userAgent = request.headers['user-agent'] ?? 'unknown';
 
@@ -152,7 +152,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
   app.post(
     '/resend-verification',
-    async (request: FastifyRequest<{ Body: any }>, reply: FastifyReply) => {
+    async (request: FastifyRequest<{ Body: { email: string } }>, reply: FastifyReply) => {
       await authService.resendVerificationEmail(request.body);
       return reply
         .status(200)
@@ -163,7 +163,7 @@ export default async function authRoutes(app: FastifyInstance) {
   // Password Reset
   app.post(
     '/forgot-password',
-    async (request: FastifyRequest<{ Body: any }>, reply: FastifyReply) => {
+    async (request: FastifyRequest<{ Body: { email: string } }>, reply: FastifyReply) => {
       const ip = request.ip;
       const userAgent = request.headers['user-agent'] ?? 'unknown';
 
@@ -176,7 +176,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
   app.post(
     '/reset-password',
-    async (request: FastifyRequest<{ Body: any }>, reply: FastifyReply) => {
+    async (request: FastifyRequest<{ Body: { token: string; newPassword: string } }>, reply: FastifyReply) => {
       const ip = request.ip;
       const userAgent = request.headers['user-agent'] ?? 'unknown';
 

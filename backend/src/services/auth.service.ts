@@ -36,7 +36,6 @@ import {
   AuthenticationError,
   ConflictError,
   ValidationError,
-  NotFoundError,
 } from '../utils/errors.js';
 import { sendEmail } from './email.service.js';
 import { getVerificationEmailTemplate, getPasswordResetTemplate } from '../utils/emailTemplates.js';

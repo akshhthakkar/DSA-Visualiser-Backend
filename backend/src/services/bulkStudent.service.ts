@@ -24,7 +24,7 @@ import type {
 } from '../types/bulkStudent.types.js';
 import { ValidationError, NotFoundError, AuthorizationError } from '../utils/errors.js';
 import { randomBytes } from 'node:crypto';
-import { logger } from '../config/logger.js';
+
 
 // ============================================
 // GENERATE SECURE PASSWORD
