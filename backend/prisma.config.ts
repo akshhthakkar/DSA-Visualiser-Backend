@@ -9,19 +9,14 @@ import { defineConfig } from 'prisma/config';
 
 dotenv.config();
 
-const databaseUrl = process.env['DATABASE_URL'];
-if (!databaseUrl) {
-  throw new Error(
-    '❌ DATABASE_URL is not set. Make sure it is configured in your environment variables.'
-  );
-}
-
 export default defineConfig({
   earlyAccess: true,
   schema: path.join('prisma', 'schema.prisma'),
 
   datasource: {
-    url: databaseUrl,
+    // Falls back to empty string at build time (prisma generate doesn't need a URL).
+    // At runtime, Render injects the real DATABASE_URL before migration runs.
+    url: process.env['DATABASE_URL'] ?? '',
   },
 
   migrate: {
