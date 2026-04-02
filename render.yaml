@@ -6,7 +6,7 @@ services:
     dockerfilePath: ./backend/Dockerfile
     # Use the root directory as docker context so it can access everything if needed in the future
     # But since Dockerfile is inside backend/ we copy what is there.
-    # We will use /backend context for the Dockerfile.
+    # We will use /backend context for the Dockerfile
     dockerContext: ./backend
     plan: free # Can be upgraded to starter/standard on Render dashboard
     envVars:
