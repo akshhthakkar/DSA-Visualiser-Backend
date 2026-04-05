@@ -160,6 +160,80 @@ describe('Teacher Class Management Endpoints', () => {
   });
 
   // ============================================
+  // POST /api/teacher/classes
+  // ============================================
+  describe('POST /api/teacher/classes', () => {
+    it('should create class for logged-in teacher', async () => {
+      app = await buildApp();
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/teacher/classes',
+        headers: { authorization: `Bearer ${teacherToken}` },
+        payload: {
+          name: 'Algorithms',
+          code: 'CS302',
+          degree: 'Computer Science',
+          batch: '2024',
+          semester: '4',
+          academicYear: '2024-2025',
+          maxStudents: 80,
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.name).toBe('Algorithms');
+      expect(body.code).toBe('CS302');
+      expect(body.universityName).toBe('Test University');
+      expect(body.studentCount).toBe(0);
+
+      const createdClass = await prisma.class.findFirst({
+        where: { code: 'CS302', primaryTeacherId: teacherUserId, deletedAt: null },
+      });
+      expect(createdClass).toBeTruthy();
+      expect(createdClass!.universityId).toBe(universityId);
+    });
+
+    it('should reject duplicate class code in same university', async () => {
+      app = await buildApp();
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/teacher/classes',
+        headers: { authorization: `Bearer ${teacherToken}` },
+        payload: {
+          name: 'Advanced Data Structures',
+          code: 'CS301',
+          degree: 'Computer Science',
+          batch: '2024',
+        },
+      });
+
+      expect(res.statusCode).toBe(409);
+      expect(res.json().code).toBe('CONFLICT');
+    });
+
+    it('should reject invalid create body with 400', async () => {
+      app = await buildApp();
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/teacher/classes',
+        headers: { authorization: `Bearer ${teacherToken}` },
+        payload: {
+          code: 'CS304',
+          degree: 'Computer Science',
+          batch: '2024',
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  // ============================================
   // GET /api/teacher/classes/:classId
   // ============================================
   describe('GET /api/teacher/classes/:classId', () => {

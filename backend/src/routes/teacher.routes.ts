@@ -13,6 +13,7 @@ import {
   classIdParamSchema,
   studentIdParamSchema,
   addStudentSchema,
+  createTeacherClassSchema,
   studentListQuerySchema,
   searchStudentsQuerySchema,
 } from '../types/teacher.types.js';
@@ -21,7 +22,8 @@ import { ValidationError } from '../utils/errors.js';
 export default async function teacherRoutes(app: FastifyInstance) {
   // --- Prefix-level hooks: auth + teacher role on ALL routes ---
   app.addHook('onRequest', requireAuth);
-  app.addHook('onRequest', requireTeacher);  app.addHook('onRequest', rateLimitPerUser({ max: 100, timeWindow: 60 })); // 100 requests per minute
+  app.addHook('onRequest', requireTeacher);
+  app.addHook('onRequest', rateLimitPerUser({ max: 100, timeWindow: 60 })); // 100 requests per minute
   // GET /profile — teacher profile with university
   app.get('/profile', async (request: FastifyRequest, reply: FastifyReply) => {
     const profile = await teacherService.getProfile(request.user!.userId);
@@ -32,6 +34,17 @@ export default async function teacherRoutes(app: FastifyInstance) {
   app.get('/classes', async (request: FastifyRequest, reply: FastifyReply) => {
     const classes = await teacherService.getClasses(request.user!.userId);
     void reply.status(200).send({ classes });
+  });
+
+  // POST /classes — create class in teacher's own university
+  app.post('/classes', async (request: FastifyRequest, reply: FastifyReply) => {
+    const bodyResult = createTeacherClassSchema.safeParse(request.body);
+    if (!bodyResult.success) {
+      throw new ValidationError('Validation failed', bodyResult.error.issues);
+    }
+
+    const created = await teacherService.createClass(request.user!.userId, bodyResult.data);
+    void reply.status(201).send(created);
   });
 
   // GET /classes/:classId — single class detail

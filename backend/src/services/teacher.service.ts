@@ -7,8 +7,9 @@
 
 import { prisma } from '../config/database.js';
 import * as teacherRepo from '../repositories/teacher.repository.js';
-import { NotFoundError } from '../utils/errors.js';
+import { ConflictError, NotFoundError } from '../utils/errors.js';
 import type {
+  CreateTeacherClassInput,
   TeacherProfileDTO,
   ClassListItemDTO,
   ClassDetailDTO,
@@ -55,6 +56,53 @@ export async function getClasses(userId: string): Promise<ClassListItemDTO[]> {
     isActive: c.isActive,
     createdAt: c.createdAt,
   }));
+}
+
+// ============================================
+// CREATE CLASS
+// ============================================
+export async function createClass(
+  userId: string,
+  data: CreateTeacherClassInput
+): Promise<ClassDetailDTO> {
+  const teacher = await teacherRepo.findByUserId(userId);
+
+  const createData = {
+    ...data,
+    universityId: teacher.universityId,
+    primaryTeacherId: teacher.userId,
+    startDate: data.startDate ? new Date(data.startDate) : undefined,
+    endDate: data.endDate ? new Date(data.endDate) : undefined,
+  };
+
+  const result = await teacherRepo.createClass(createData);
+
+  if (!result.success) {
+    if (result.error === 'DUPLICATE_CLASS_CODE') {
+      throw new ConflictError('Class code already exists in your university');
+    }
+
+    throw new Error(`Unexpected repository error: ${result.error}`);
+  }
+
+  const createdClass = result.class;
+
+  return {
+    id: createdClass.id,
+    name: createdClass.name,
+    code: createdClass.code,
+    degree: createdClass.degree,
+    batch: createdClass.batch,
+    semester: createdClass.semester,
+    academicYear: createdClass.academicYear,
+    universityName: createdClass.university.name,
+    studentCount: createdClass._count.enrollments,
+    isActive: createdClass.isActive,
+    createdAt: createdClass.createdAt,
+    maxStudents: createdClass.maxStudents,
+    startDate: createdClass.startDate,
+    endDate: createdClass.endDate,
+  };
 }
 
 // ============================================

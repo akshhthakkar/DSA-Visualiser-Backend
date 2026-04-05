@@ -32,6 +32,44 @@ export const addStudentSchema = z.object({
 export type AddStudentInput = z.infer<typeof addStudentSchema>;
 
 // ============================================
+// CREATE CLASS — POST /api/teacher/classes
+// ============================================
+export const createTeacherClassSchema = z
+  .object({
+    name: z.string().min(2, 'Name must be at least 2 characters').max(255),
+    code: z
+      .string()
+      .min(2, 'Code must be at least 2 characters')
+      .max(50)
+      .regex(/^[A-Z0-9-]+$/i, 'Code must be alphanumeric with hyphens only'),
+    degree: z.string().min(2).max(100),
+    batch: z.string().min(4, 'Batch must be at least 4 characters (e.g., 2024)').max(50),
+    semester: z.string().max(20).optional(),
+    academicYear: z
+      .string()
+      .max(10)
+      .regex(/^\d{4}(-\d{4})?$/, 'Academic year must be YYYY or YYYY-YYYY')
+      .optional(),
+    startDate: z.string().datetime('Must be valid ISO 8601 datetime').optional(),
+    endDate: z.string().datetime('Must be valid ISO 8601 datetime').optional(),
+    maxStudents: z.number().int().min(1, 'Must have at least 1 student').max(500).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.startDate && data.endDate) {
+        return new Date(data.endDate) > new Date(data.startDate);
+      }
+      return true;
+    },
+    {
+      message: 'INVALID_DATE_RANGE',
+      path: ['endDate'],
+    }
+  );
+
+export type CreateTeacherClassInput = z.infer<typeof createTeacherClassSchema>;
+
+// ============================================
 // STUDENT LIST QUERY — GET /api/teacher/classes/:classId/students?limit=&cursor=
 // ============================================
 export const studentListQuerySchema = z.object({

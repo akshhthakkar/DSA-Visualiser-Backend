@@ -76,6 +76,64 @@ export async function getClasses(teacherId: string) {
 }
 
 // ============================================
+// CREATE CLASS (teacher-scoped)
+// ============================================
+export async function createClass(data: {
+  name: string;
+  code: string;
+  degree: string;
+  batch: string;
+  universityId: string;
+  primaryTeacherId: string;
+  semester?: string;
+  academicYear?: string;
+  startDate?: Date;
+  endDate?: Date;
+  maxStudents?: number;
+}) {
+  try {
+    const createdClass = await prisma.class.create({
+      data: {
+        name: data.name,
+        code: data.code,
+        degree: data.degree,
+        batch: data.batch,
+        universityId: data.universityId,
+        primaryTeacherId: data.primaryTeacherId,
+        semester: data.semester,
+        academicYear: data.academicYear,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        maxStudents: data.maxStudents,
+      },
+      include: {
+        university: {
+          select: {
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            enrollments: true,
+          },
+        },
+      },
+    });
+
+    return { success: true as const, class: createdClass };
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return {
+        success: false as const,
+        error: 'DUPLICATE_CLASS_CODE',
+      };
+    }
+
+    throw error;
+  }
+}
+
+// ============================================
 // GET SINGLE CLASS (ownership + soft-delete in one query)
 // ============================================
 // Uses findFirst with combined filters — no existence leak.
