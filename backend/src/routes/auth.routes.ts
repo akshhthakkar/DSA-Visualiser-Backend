@@ -13,10 +13,11 @@ import type { SignupInput, LoginInput } from '../types/auth.types.js';
 
 // Cookie config for refresh token
 const REFRESH_COOKIE_NAME = 'refreshToken';
+const REFRESH_COOKIE_SAME_SITE = (env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax';
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: env.NODE_ENV === 'production',
-  sameSite: (env.NODE_ENV === 'production' ? 'strict' : 'lax') as 'strict' | 'lax',
+  sameSite: REFRESH_COOKIE_SAME_SITE,
   path: '/api/auth',
   maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
 };
@@ -91,7 +92,7 @@ export default async function authRoutes(app: FastifyInstance) {
       .clearCookie(REFRESH_COOKIE_NAME, {
         httpOnly: true,
         secure: env.NODE_ENV === 'production',
-        sameSite: (env.NODE_ENV === 'production' ? 'strict' : 'lax') as 'strict' | 'lax',
+        sameSite: REFRESH_COOKIE_SAME_SITE,
         path: '/api/auth',
       })
       .status(200)
