@@ -7,23 +7,15 @@ services:
       dockerfile: Dockerfile
     container_name: dsavisualizer-backend-prod
     restart: always
-    env_file:
-      - path: .env
-        required: false
     environment:
       - NODE_ENV=production
       - PORT=3000
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/dsavisualizer?schema=public
       - REDIS_URL=redis://redis:6379
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
-      - PISTON_URL=http://piston:2000/api/v2/execute
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
     ports:
       - '3000:3000'
-    healthcheck:
-      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3000/health']
-      interval: 20s
-      timeout: 5s
-      retries: 5
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,8 +63,6 @@ services:
     container_name: dsavisualizer-piston-prod
     restart: always
     privileged: true
-    ports:
-      - '10200:2000'
     tmpfs:
       - /piston/jobs
     networks:

@@ -2,11 +2,10 @@
 // Handles: create, join, end, get, run-code (with AutoScore via Socket.io)
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../config/database.js';
-import { env } from '../config/env.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { logger } from '../config/logger.js';
 
-const PISTON_URL = env.PISTON_URL;
+const PISTON_URL = 'http://localhost:10200/api/v2/execute';
 
 const LANG_CONFIG: Record<string, { language: string; version: string; ext: string }> = {
   javascript: { language: 'node', version: '18.15.0', ext: '.js' },

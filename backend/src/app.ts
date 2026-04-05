@@ -14,6 +14,7 @@ import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
 import { env } from './config/env.js';
 import { redis } from './config/redis.js';
+import { prisma } from './config/database.js';
 import { httpRequestDurationMicroseconds } from './config/metrics.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
@@ -28,6 +29,7 @@ import studentProblemsRoutes from './routes/studentProblems.routes.js';
 import roadmapRoutes from './routes/roadmap.routes.js';
 import sessionsRoutes from './routes/sessions.routes.js';
 import metricsRoutes from './routes/metrics.routes.js';
+import { runPreflightChecks } from './services/preflight.service.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -45,22 +47,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // Backend-DevSkill.md: "CORS configured explicitly"
-  // Accepts the primary production URL + any Vercel preview deployment URLs.
-  const allowedOrigins: (string | RegExp)[] = [env.FRONTEND_URL];
-
-  // Allow all Vercel preview deployments for this project (e.g. dsavisualization-*.vercel.app)
-  allowedOrigins.push(/^https:\/\/dsavisualization[a-zA-Z0-9-]*\.vercel\.app$/);
-
   await app.register(cors, {
-    origin: (origin, cb) => {
-      // Allow requests with no origin (e.g. server-to-server, curl)
-      if (!origin) return cb(null, true);
-      const allowed = allowedOrigins.some((o) =>
-        typeof o === 'string' ? o === origin : o.test(origin)
-      );
-      if (allowed) return cb(null, true);
-      cb(new Error(`CORS: Origin '${origin}' not allowed`), false);
-    },
+    origin: env.FRONTEND_URL,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
@@ -114,26 +102,40 @@ export async function buildApp(): Promise<FastifyInstance> {
     app.log.info('Redis disconnected');
   });
 
+  const getHealthResponse = async () => {
+    const dbHealthy = await prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false);
+
+    const redisHealthy = await redis
+      .ping()
+      .then((pong) => pong === 'PONG')
+      .catch(() => false);
+
+    const status = dbHealthy && redisHealthy ? 'ok' : 'degraded';
+    const code = status === 'ok' ? 200 : 503;
+
+    return {
+      code,
+      payload: {
+        status,
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: env.NODE_ENV,
+        redis: redisHealthy ? 'connected' : 'disconnected',
+        services: {
+          database: dbHealthy ? 'healthy' : 'unhealthy',
+          redis: redisHealthy ? 'healthy' : 'unhealthy',
+        },
+      },
+    };
+  };
+
   // --- API prefix: all routes under /api ---
   await app.register(
     async (api) => {
       // --- Phase 0: Health check ---
-      api.get('/health', async () => {
-        let redisStatus: 'connected' | 'disconnected' = 'disconnected';
-        try {
-          const pong = await redis.ping();
-          if (pong === 'PONG') redisStatus = 'connected';
-        } catch {
-          // Redis unreachable — report disconnected
-        }
-
-        return {
-          status: 'ok',
-          timestamp: new Date().toISOString(),
-          uptime: process.uptime(),
-          environment: env.NODE_ENV,
-          redis: redisStatus,
-        };
+      api.get('/health', async (_request, reply) => {
+        const { code, payload } = await getHealthResponse();
+        return reply.code(code).send(payload);
       });
 
       // --- Phase 1: Auth routes ---
@@ -164,6 +166,28 @@ export async function buildApp(): Promise<FastifyInstance> {
       await api.register(sessionsRoutes, { prefix: '/sessions' });
       await api.register(metricsRoutes, { prefix: '/metrics' });
 
+      // --- Ops: deploy preflight checks (DB + Redis + SMTP) ---
+      api.get('/ops/preflight', async (request, reply) => {
+        if (!env.PREFLIGHT_TOKEN) {
+          return reply.status(404).send({
+            error: 'NOT_FOUND',
+            message: 'Preflight endpoint is disabled',
+          });
+        }
+
+        const tokenHeader = request.headers['x-preflight-token'];
+        const token = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
+        if (!token || token !== env.PREFLIGHT_TOKEN) {
+          return reply.status(403).send({
+            error: 'FORBIDDEN',
+            message: 'Invalid preflight token',
+          });
+        }
+
+        const report = await runPreflightChecks();
+        return reply.code(report.status === 'ok' ? 200 : 503).send(report);
+      });
+
       // --- Placeholder: AI endpoint ---
       api.post('/ai/ask', async (_request: FastifyRequest, reply: FastifyReply) => {
         void reply.status(501).send({
@@ -177,22 +201,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   );
 
   // --- Root health (no prefix, for infra probes) ---
-  app.get('/health', async () => {
-    let redisStatus: 'connected' | 'disconnected' = 'disconnected';
-    try {
-      const pong = await redis.ping();
-      if (pong === 'PONG') redisStatus = 'connected';
-    } catch {
-      // Redis unreachable — report disconnected
-    }
-
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: env.NODE_ENV,
-      redis: redisStatus,
-    };
+  app.get('/health', async (_request, reply) => {
+    const { code, payload } = await getHealthResponse();
+    return reply.code(code).send(payload);
   });
 
   // --- 404 handler ---

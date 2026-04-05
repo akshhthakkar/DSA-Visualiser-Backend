@@ -519,6 +519,17 @@ describe('Admin User Management Endpoints', () => {
     it('should exclude soft-deleted users from stats', async () => {
       app = await buildApp();
 
+      const scopedStudent = await prisma.user.create({
+        data: {
+          name: 'Scoped Stats Student',
+          email: `scoped-stats-${Date.now()}@test.edu`,
+          passwordHash: '$2b$12$placeholder.hash.not.used',
+          role: 'STUDENT' as UserRole,
+          isActive: true,
+          emailVerified: false,
+        },
+      });
+
       // Get initial stats
       const before = await app.inject({
         method: 'GET',
@@ -530,7 +541,7 @@ describe('Admin User Management Endpoints', () => {
 
       // Soft delete student
       await prisma.user.update({
-        where: { id: studentUserId },
+        where: { id: scopedStudent.id },
         data: { deletedAt: new Date(), isActive: false },
       });
 

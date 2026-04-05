@@ -28,6 +28,10 @@ describe('Health Check Endpoint', () => {
       status: 'ok',
       environment: 'test',
       redis: 'connected',
+      services: {
+        database: 'healthy',
+        redis: 'healthy',
+      },
     });
     expect(body.timestamp).toBeDefined();
     expect(typeof body.uptime).toBe('number');

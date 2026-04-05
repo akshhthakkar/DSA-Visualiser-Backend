@@ -21,6 +21,13 @@ export interface SendEmailOptions {
 }
 
 /**
+ * Verify SMTP connectivity and auth credentials.
+ */
+export async function verifyEmailTransport() {
+  return transporter.verify();
+}
+
+/**
  * Send an email using Brevo SMTP.
  */
 export async function sendEmail({ to, subject, text, html }: SendEmailOptions) {

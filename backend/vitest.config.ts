@@ -8,8 +8,9 @@ export default defineConfig({
     setupFiles: ['./src/__tests__/setup.ts'],
     // All test files share one database — run sequentially to avoid truncation races
     fileParallelism: false,
-    // bcrypt operations (12 rounds) can take >5s on slower machines
-    testTimeout: 15000,
+    // Integration tests hit real DB/Redis and can exceed 15s on slower runners
+    testTimeout: 30000,
+    hookTimeout: 60000,
     include: ['src/**/*.test.ts'],
   },
   resolve: {

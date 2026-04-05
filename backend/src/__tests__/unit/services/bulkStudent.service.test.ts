@@ -91,7 +91,7 @@ describe('Bulk Student Service', () => {
 
       expect(result.valid.length).toBe(1);
       expect(result.invalid.length).toBe(1);
-      expect(result.invalid[0]?.error).toContain('Email domain not allowed');
+      expect(result.invalid[0]!.error).toContain('Email domain not allowed');
     });
 
     it('should throw error for intra-batch duplicate emails', async () => {
@@ -143,7 +143,7 @@ describe('Bulk Student Service', () => {
 
       expect(result.summary.successful).toBe(1);
       expect(result.summary.failed).toBe(0);
-      expect(result.success[0]?.password).toBeDefined(); // Password should be generated
+      expect(result.success[0]!.password).toBeDefined(); // Password should be generated
 
       const dbStudent = await prisma.user.findUnique({ where: { email: 'new1@test.edu' } });
       expect(dbStudent).toBeDefined();

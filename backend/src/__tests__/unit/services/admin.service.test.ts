@@ -49,7 +49,7 @@ describe('Admin Service', () => {
       await createTestUser({ email: 'searchable@test.com', name: 'Zebra' });
       const result = await listUsers(1, 10, { search: 'Zebra' }, adminId, '127.0.0.1', 'Vitest');
       expect(result.users.length).toBe(1);
-      expect(result.users[0]?.email).toBe('searchable@test.com');
+      expect(result.users[0]!.email).toBe('searchable@test.com');
     });
   });
 
@@ -62,9 +62,9 @@ describe('Admin Service', () => {
     });
 
     it('should throw NotFoundError if user does not exist', async () => {
-      await expect(getUserById('00000000-0000-0000-0000-000000000000', adminId, '127.0.0.1', 'Vitest')).rejects.toThrow(
-        NotFoundError
-      );
+      await expect(
+        getUserById('00000000-0000-0000-0000-000000000000', adminId, '127.0.0.1', 'Vitest')
+      ).rejects.toThrow(NotFoundError);
     });
   });
 

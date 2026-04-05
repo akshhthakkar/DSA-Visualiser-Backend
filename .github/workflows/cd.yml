@@ -19,3 +19,8 @@ jobs:
           RENDER_DEPLOY_HOOK_URL: "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
         run: |
           curl -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Report Deployment Status
+        if: always()
+        run: |
+          echo "Deployment triggered. CI status was: ${{ github.event.workflow_run.conclusion }}"

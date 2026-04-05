@@ -25,7 +25,6 @@ import type {
 import { ValidationError, NotFoundError, AuthorizationError } from '../utils/errors.js';
 import { randomBytes } from 'node:crypto';
 
-
 // ============================================
 // GENERATE SECURE PASSWORD
 // 16-char password with guaranteed complexity.
@@ -266,7 +265,7 @@ export async function createStudentsBulk(
     students = students.filter((s) => !failedEmails.has(s.email.toLowerCase()));
     if (students.length === 0) {
       // Record history even if all failed
-      recordBulkHistory(
+      await recordBulkHistory(
         universityId,
         adminId,
         fileName || 'unknown.csv',
@@ -402,8 +401,15 @@ export async function createStudentsBulk(
     })
     .catch((err) => logger.error(err));
 
-  // Step 9: Record import in BulkImport history (non-blocking)
-  recordBulkHistory(universityId, adminId, fileName || 'unknown.csv', result, startTime, requestId);
+  // Step 9: Record import in BulkImport history before returning
+  await recordBulkHistory(
+    universityId,
+    adminId,
+    fileName || 'unknown.csv',
+    result,
+    startTime,
+    requestId
+  );
 
   // Step 10: Send welcome emails with credentials via Brevo
   if (result.success.length > 0) {
@@ -439,19 +445,19 @@ export async function createStudentsBulk(
 /**
  * Helper to record bulk import history without blocking the main response.
  */
-function recordBulkHistory(
+async function recordBulkHistory(
   universityId: string,
   adminId: string,
   fileName: string,
   result: BulkCreateResult,
   startTime: number,
   requestId: string | undefined
-) {
+): Promise<void> {
   const durationMs = Date.now() - startTime;
   const status = result.summary.failed > 0 ? 'completed_with_errors' : 'completed';
 
-  bulkStudentRepo
-    .createBulkImportRecord({
+  try {
+    await bulkStudentRepo.createBulkImportRecord({
       universityId,
       createdBy: adminId,
       fileName,
@@ -462,8 +468,8 @@ function recordBulkHistory(
       failedRows: result.failed.length > 0 ? result.failed : undefined,
       durationMs,
       requestId: requestId || undefined,
-    })
-    .catch((err) => {
-      logger.error('[BulkImportHistory] Failed to record:', err);
     });
+  } catch (err) {
+    logger.error('[BulkImportHistory] Failed to record:', err);
+  }
 }

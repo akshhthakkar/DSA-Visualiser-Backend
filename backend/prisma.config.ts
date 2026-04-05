@@ -14,9 +14,7 @@ export default defineConfig({
   schema: path.join('prisma', 'schema.prisma'),
 
   datasource: {
-    // Falls back to empty string at build time (prisma generate doesn't need a URL).
-    // At runtime, Render injects the real DATABASE_URL before migration runs.
-    url: process.env['DATABASE_URL'] ?? '',
+    url: process.env['DATABASE_URL']!,
   },
 
   migrate: {

@@ -5,5 +5,3 @@ dist/
 .DS_Store
 .prisma/
 coverage/
-shared/dist/
-shared/package-lock.json

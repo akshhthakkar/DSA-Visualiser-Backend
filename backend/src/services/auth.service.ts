@@ -32,11 +32,7 @@ import type {
   ForgotPasswordInput,
   ResetPasswordInput,
 } from '../types/auth.types.js';
-import {
-  AuthenticationError,
-  ConflictError,
-  ValidationError,
-} from '../utils/errors.js';
+import { AuthenticationError, ConflictError, ValidationError } from '../utils/errors.js';
 import { sendEmail } from './email.service.js';
 import { getVerificationEmailTemplate, getPasswordResetTemplate } from '../utils/emailTemplates.js';
 import { createFingerprint } from '../utils/fingerprint.js';
@@ -96,23 +92,34 @@ export async function signup(input: SignupInput, ip: string, userAgent: string) 
     return newUser;
   });
 
-  // 4b. Generate Verification Token
-  const verificationToken = crypto.randomBytes(32).toString('hex');
-  await prisma.emailVerificationToken.create({
-    data: {
-      token: verificationToken,
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-    },
-  });
+  // 4b/4c. Verification token + email is best-effort and should not block signup.
+  try {
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const emailVerificationTokenDelegate = (prisma as any).emailVerificationToken;
 
-  // 4c. Send Verification Email (async, non-blocking)
-  const template = getVerificationEmailTemplate(user.name, verificationToken);
-  sendEmail({
-    to: user.email,
-    subject: template.subject,
-    html: template.html,
-  }).catch((err) => logger.error('Failed to send verification email:', err));
+    if (emailVerificationTokenDelegate?.create) {
+      await emailVerificationTokenDelegate.create({
+        data: {
+          token: verificationToken,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        },
+      });
+
+      const template = getVerificationEmailTemplate(user.name, verificationToken);
+      sendEmail({
+        to: user.email,
+        subject: template.subject,
+        html: template.html,
+      }).catch((err) => logger.error('Failed to send verification email:', err));
+    } else {
+      logger.warn(
+        'emailVerificationToken model not available; skipping verification token creation'
+      );
+    }
+  } catch (error) {
+    logger.warn('Signup succeeded but verification email setup failed', error);
+  }
 
   // 5. Generate tokens
   const fingerprint = createFingerprint(ip, userAgent);

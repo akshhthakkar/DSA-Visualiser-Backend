@@ -4,7 +4,6 @@ import {
   getProgressForProblem,
   getAllProgress,
 } from '../../../services/progress.service.js';
-
 import { createTestStudent, createTestUniversity } from '../../helpers/fixtures.js';
 import { prisma } from '../../../config/database.js';
 import { NotFoundError } from '../../../utils/errors.js';
@@ -78,8 +77,8 @@ describe('Progress Service', () => {
 
       const res = await getAllProgress(studentId);
       expect(res).toHaveLength(1);
-      expect(res[0]?.problemId).toBe(problemId);
-      expect(res[0]?.problemTitle).toBe('Test Problem');
+      expect(res[0]!.problemId).toBe(problemId);
+      expect(res[0]!.problemTitle).toBe('Test Problem');
     });
   });
 });

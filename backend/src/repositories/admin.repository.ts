@@ -425,105 +425,122 @@ export async function createClass(data: {
   endDate?: Date;
   maxStudents?: number;
 }) {
-  try {
-    const result = await prisma.$transaction(
-      async (tx) => {
-        // Step 1: Validate university exists
-        const university = await tx.university.findUnique({
-          where: { id: data.universityId },
-        });
+  const maxTransactionAttempts = 2;
+  let lastError: unknown;
 
-        if (!university) {
-          return {
-            success: false as const,
-            error: 'UNIVERSITY_NOT_FOUND',
-            details: { universityId: data.universityId },
-          };
-        }
+  for (let attempt = 1; attempt <= maxTransactionAttempts; attempt += 1) {
+    try {
+      const result = await prisma.$transaction(
+        async (tx) => {
+          // Step 1: Validate university exists
+          const university = await tx.university.findUnique({
+            where: { id: data.universityId },
+          });
 
-        // Step 2: Validate teacher exists
-        const teacher = await tx.teacher.findUnique({
-          where: { userId: data.primaryTeacherId },
-          include: {
-            user: {
-              select: { id: true, name: true, email: true },
-            },
-          },
-        });
+          if (!university) {
+            return {
+              success: false as const,
+              error: 'UNIVERSITY_NOT_FOUND',
+              details: { universityId: data.universityId },
+            };
+          }
 
-        if (!teacher) {
-          return {
-            success: false as const,
-            error: 'TEACHER_NOT_FOUND',
-            details: { teacherId: data.primaryTeacherId },
-          };
-        }
-
-        // Step 3: Validate teacher belongs to same university
-        if (teacher.universityId !== data.universityId) {
-          return {
-            success: false as const,
-            error: 'TEACHER_UNIVERSITY_MISMATCH',
-            details: {
-              teacherUniversityId: teacher.universityId,
-              classUniversityId: data.universityId,
-            },
-          };
-        }
-
-        // Step 4: Create class
-        const newClass = await tx.class.create({
-          data: {
-            name: data.name,
-            code: data.code,
-            degree: data.degree,
-            batch: data.batch,
-            universityId: data.universityId,
-            primaryTeacherId: data.primaryTeacherId,
-            semester: data.semester,
-            academicYear: data.academicYear,
-            startDate: data.startDate,
-            endDate: data.endDate,
-            maxStudents: data.maxStudents,
-          },
-          select: {
-            ...safeClassSelect,
-            university: {
-              select: { id: true, name: true },
-            },
-            primaryTeacher: {
-              select: {
-                userId: true,
-                user: {
-                  select: { name: true, email: true },
-                },
+          // Step 2: Validate teacher exists
+          const teacher = await tx.teacher.findUnique({
+            where: { userId: data.primaryTeacherId },
+            include: {
+              user: {
+                select: { id: true, name: true, email: true },
               },
             },
-            _count: {
-              select: { enrollments: true },
+          });
+
+          if (!teacher) {
+            return {
+              success: false as const,
+              error: 'TEACHER_NOT_FOUND',
+              details: { teacherId: data.primaryTeacherId },
+            };
+          }
+
+          // Step 3: Validate teacher belongs to same university
+          if (teacher.universityId !== data.universityId) {
+            return {
+              success: false as const,
+              error: 'TEACHER_UNIVERSITY_MISMATCH',
+              details: {
+                teacherUniversityId: teacher.universityId,
+                classUniversityId: data.universityId,
+              },
+            };
+          }
+
+          // Step 4: Create class
+          const newClass = await tx.class.create({
+            data: {
+              name: data.name,
+              code: data.code,
+              degree: data.degree,
+              batch: data.batch,
+              universityId: data.universityId,
+              primaryTeacherId: data.primaryTeacherId,
+              semester: data.semester,
+              academicYear: data.academicYear,
+              startDate: data.startDate,
+              endDate: data.endDate,
+              maxStudents: data.maxStudents,
             },
-          },
-        });
+            select: {
+              ...safeClassSelect,
+              university: {
+                select: { id: true, name: true },
+              },
+              primaryTeacher: {
+                select: {
+                  userId: true,
+                  user: {
+                    select: { name: true, email: true },
+                  },
+                },
+              },
+              _count: {
+                select: { enrollments: true },
+              },
+            },
+          });
 
-        return { success: true as const, class: newClass };
-      },
-      {
-        isolationLevel: 'ReadCommitted', // Explicit isolation level
+          return { success: true as const, class: newClass };
+        },
+        {
+          isolationLevel: 'ReadCommitted',
+          maxWait: 10000,
+          timeout: 15000,
+        }
+      );
+
+      return result;
+    } catch (error: any) {
+      // Handle Prisma unique constraint violations (P2002)
+      if (error?.code === 'P2002') {
+        return {
+          success: false as const,
+          error: 'DUPLICATE_CLASS_CODE',
+          details: { code: data.code, universityId: data.universityId },
+        };
       }
-    );
 
-    return result;
-  } catch (error: any) {
-    // Handle Prisma unique constraint violations (P2002)
-    if (error.code === 'P2002') {
-      return {
-        success: false as const,
-        error: 'DUPLICATE_CLASS_CODE',
-        details: { code: data.code, universityId: data.universityId },
-      };
+      const isRetryableTxError = error?.code === 'P2028' || error?.code === 'P2034';
+      if (isRetryableTxError && attempt < maxTransactionAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 150 * attempt));
+        continue;
+      }
+
+      lastError = error;
+      break;
     }
-    throw error; // Re-throw unexpected errors
   }
+
+  throw lastError;
 }
 
 /**
@@ -584,81 +601,97 @@ export async function updateClass(
  * when co-teaching support is implemented. Requires schema migration and API versioning.
  */
 export async function assignTeacher(classId: string, teacherId: string) {
-  try {
-    const result = await prisma.$transaction(
-      async (tx) => {
-        // Step 1: Find class
-        const classData = await tx.class.findFirst({
-          where: { id: classId, deletedAt: null },
-          select: { id: true, universityId: true },
-        });
+  const maxTransactionAttempts = 2;
+  let lastError: unknown;
 
-        if (!classData) {
-          return {
-            success: false as const,
-            error: 'CLASS_NOT_FOUND',
-          };
-        }
+  for (let attempt = 1; attempt <= maxTransactionAttempts; attempt += 1) {
+    try {
+      const result = await prisma.$transaction(
+        async (tx) => {
+          // Step 1: Find class
+          const classData = await tx.class.findFirst({
+            where: { id: classId, deletedAt: null },
+            select: { id: true, universityId: true },
+          });
 
-        // Step 2: Find teacher
-        const teacher = await tx.teacher.findUnique({
-          where: { userId: teacherId },
-          select: { userId: true, universityId: true },
-        });
+          if (!classData) {
+            return {
+              success: false as const,
+              error: 'CLASS_NOT_FOUND',
+            };
+          }
 
-        if (!teacher) {
-          return {
-            success: false as const,
-            error: 'TEACHER_NOT_FOUND',
-          };
-        }
+          // Step 2: Find teacher
+          const teacher = await tx.teacher.findUnique({
+            where: { userId: teacherId },
+            select: { userId: true, universityId: true },
+          });
 
-        // Step 3: Validate university match
-        if (teacher.universityId !== classData.universityId) {
-          return {
-            success: false as const,
-            error: 'TEACHER_UNIVERSITY_MISMATCH',
-            details: {
-              teacherUniversityId: teacher.universityId,
-              classUniversityId: classData.universityId,
-            },
-          };
-        }
+          if (!teacher) {
+            return {
+              success: false as const,
+              error: 'TEACHER_NOT_FOUND',
+            };
+          }
 
-        // Step 4: Update class
-        const updatedClass = await tx.class.update({
-          where: { id: classId },
-          data: { primaryTeacherId: teacherId },
-          select: {
-            ...safeClassSelect,
-            university: {
-              select: { id: true, name: true },
-            },
-            primaryTeacher: {
-              select: {
-                userId: true,
-                user: {
-                  select: { name: true, email: true },
+          // Step 3: Validate university match
+          if (teacher.universityId !== classData.universityId) {
+            return {
+              success: false as const,
+              error: 'TEACHER_UNIVERSITY_MISMATCH',
+              details: {
+                teacherUniversityId: teacher.universityId,
+                classUniversityId: classData.universityId,
+              },
+            };
+          }
+
+          // Step 4: Update class
+          const updatedClass = await tx.class.update({
+            where: { id: classId },
+            data: { primaryTeacherId: teacherId },
+            select: {
+              ...safeClassSelect,
+              university: {
+                select: { id: true, name: true },
+              },
+              primaryTeacher: {
+                select: {
+                  userId: true,
+                  user: {
+                    select: { name: true, email: true },
+                  },
                 },
               },
+              _count: {
+                select: { enrollments: true },
+              },
             },
-            _count: {
-              select: { enrollments: true },
-            },
-          },
-        });
+          });
 
-        return { success: true as const, class: updatedClass };
-      },
-      {
-        isolationLevel: 'ReadCommitted',
+          return { success: true as const, class: updatedClass };
+        },
+        {
+          isolationLevel: 'ReadCommitted',
+          maxWait: 10000,
+          timeout: 15000,
+        }
+      );
+
+      return result;
+    } catch (error: any) {
+      const isRetryableTxError = error?.code === 'P2028' || error?.code === 'P2034';
+      if (isRetryableTxError && attempt < maxTransactionAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 150 * attempt));
+        continue;
       }
-    );
 
-    return result;
-  } catch (error) {
-    throw error;
+      lastError = error;
+      break;
+    }
   }
+
+  throw lastError;
 }
 
 /**

@@ -12,6 +12,8 @@ dotenv.config();
 const envSchema = z.object({
   // Database — postgresql-skill.md requires PostgreSQL as source of truth
   DATABASE_URL: z.string().url(),
+  DATABASE_CA_CERT: z.string().optional(),
+  DATABASE_CA_CERT_PATH: z.string().optional(),
 
   // Redis — Backend-DevSkill.md: "Redis 7+ for caching and sessions"
   REDIS_URL: z.string().url(),
@@ -43,7 +45,11 @@ const envSchema = z.object({
       'xsmtpsib-1c2ac9a25e6ae6ed1bfe74ccc2b5487104aaac862c9c377be67e84b9c821c1a6-wt6mgYkePLfF7TN8'
     ),
   EMAIL_FROM: z.string().default('noreply@dsavisualizer.com'),
-  PISTON_URL: z.string().url().default('http://localhost:10200/api/v2/execute'),
+
+  // Ops preflight checks
+  PREFLIGHT_TOKEN: z.string().optional(),
+  PREFLIGHT_TIMEOUT_MS: z.coerce.number().default(5000).pipe(z.number().min(1000).max(30000)),
+  PREFLIGHT_REQUIRE_SMTP: z.coerce.boolean().optional(),
 
   // Monitoring Sentry
   SENTRY_DSN: z.string().url().optional(),

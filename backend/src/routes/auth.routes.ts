@@ -142,13 +142,16 @@ export default async function authRoutes(app: FastifyInstance) {
   );
 
   // Email Verification
-  app.post('/verify-email', async (request: FastifyRequest<{ Body: { token: string } }>, reply: FastifyReply) => {
-    const ip = request.ip;
-    const userAgent = request.headers['user-agent'] ?? 'unknown';
+  app.post(
+    '/verify-email',
+    async (request: FastifyRequest<{ Body: { token: string } }>, reply: FastifyReply) => {
+      const ip = request.ip;
+      const userAgent = request.headers['user-agent'] ?? 'unknown';
 
-    await authService.verifyEmail(request.body, ip, userAgent);
-    return reply.status(200).send({ message: 'Email successfully verified' });
-  });
+      await authService.verifyEmail(request.body, ip, userAgent);
+      return reply.status(200).send({ message: 'Email successfully verified' });
+    }
+  );
 
   app.post(
     '/resend-verification',
@@ -176,7 +179,10 @@ export default async function authRoutes(app: FastifyInstance) {
 
   app.post(
     '/reset-password',
-    async (request: FastifyRequest<{ Body: { token: string; newPassword: string } }>, reply: FastifyReply) => {
+    async (
+      request: FastifyRequest<{ Body: { token: string; newPassword: string } }>,
+      reply: FastifyReply
+    ) => {
       const ip = request.ip;
       const userAgent = request.headers['user-agent'] ?? 'unknown';
 
