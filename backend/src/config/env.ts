@@ -45,6 +45,7 @@ const envSchema = z.object({
       'xsmtpsib-1c2ac9a25e6ae6ed1bfe74ccc2b5487104aaac862c9c377be67e84b9c821c1a6-wt6mgYkePLfF7TN8'
     ),
   EMAIL_FROM: z.string().default('noreply@dsavisualizer.com'),
+  EMAIL_ENABLED: z.coerce.boolean().optional(),
 
   // Ops preflight checks
   PREFLIGHT_TOKEN: z.string().optional(),

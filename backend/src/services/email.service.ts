@@ -3,6 +3,8 @@ import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
 
+const isEmailEnabled = env.EMAIL_ENABLED ?? env.NODE_ENV !== 'test';
+
 const transporter = nodemailer.createTransport({
   host: env.SMTP_HOST,
   port: env.SMTP_PORT,
@@ -24,6 +26,9 @@ export interface SendEmailOptions {
  * Verify SMTP connectivity and auth credentials.
  */
 export async function verifyEmailTransport() {
+  if (!isEmailEnabled) {
+    return true;
+  }
   return transporter.verify();
 }
 
@@ -31,6 +36,10 @@ export async function verifyEmailTransport() {
  * Send an email using Brevo SMTP.
  */
 export async function sendEmail({ to, subject, text, html }: SendEmailOptions) {
+  if (!isEmailEnabled) {
+    return { messageId: 'email-disabled' };
+  }
+
   try {
     const info = await transporter.sendMail({
       from: env.EMAIL_FROM,

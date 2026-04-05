@@ -2,14 +2,14 @@ name: Backend CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
-      - 'backend/**'
-      - '.github/workflows/ci.yml'
+      - "backend/**"
+      - ".github/workflows/ci.yml"
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
-      - 'backend/**'
+      - "backend/**"
 
 jobs:
   test:
@@ -46,7 +46,7 @@ jobs:
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Install Backend Dependencies
         working-directory: backend
@@ -79,6 +79,7 @@ jobs:
           TEST_REDIS_URL: redis://localhost:6379
           JWT_SECRET: ci-test-secret-min-32-characters-long-string
           NODE_ENV: test
+          EMAIL_ENABLED: "false"
           FRONTEND_URL: http://localhost:5173
           PISTON_URL: http://localhost:10200/api/v2/execute
         run: npm test
