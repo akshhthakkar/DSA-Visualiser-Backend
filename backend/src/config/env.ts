@@ -47,6 +47,9 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().default('noreply@dsavisualizer.com'),
   EMAIL_ENABLED: z.coerce.boolean().optional(),
 
+  // Code execution engine endpoint (Piston)
+  PISTON_URL: z.string().url().optional(),
+
   // Ops preflight checks
   PREFLIGHT_TOKEN: z.string().optional(),
   PREFLIGHT_TIMEOUT_MS: z.coerce.number().default(5000).pipe(z.number().min(1000).max(30000)),

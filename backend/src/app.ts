@@ -28,6 +28,7 @@ import teacherProblemsRoutes from './routes/teacherProblems.routes.js';
 import studentProblemsRoutes from './routes/studentProblems.routes.js';
 import roadmapRoutes from './routes/roadmap.routes.js';
 import sessionsRoutes from './routes/sessions.routes.js';
+import pistonRoutes from './routes/piston.routes.js';
 import metricsRoutes from './routes/metrics.routes.js';
 import { runPreflightChecks } from './services/preflight.service.js';
 
@@ -164,6 +165,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await api.register(studentProblemsRoutes, { prefix: '/student/problems' });
       await api.register(roadmapRoutes, { prefix: '/roadmap' });
       await api.register(sessionsRoutes, { prefix: '/sessions' });
+      await api.register(pistonRoutes, { prefix: '/piston' });
       await api.register(metricsRoutes, { prefix: '/metrics' });
 
       // --- Ops: deploy preflight checks (DB + Redis + SMTP) ---
@@ -205,6 +207,9 @@ export async function buildApp(): Promise<FastifyInstance> {
     const { code, payload } = await getHealthResponse();
     return reply.code(code).send(payload);
   });
+
+  // Compatibility route for legacy frontend clients calling /piston/execute directly.
+  await app.register(pistonRoutes, { prefix: '/piston' });
 
   // --- 404 handler ---
   app.setNotFoundHandler(async (request, reply) => {
